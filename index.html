@@ -1,24 +1,144 @@
-<!DOCTYPE html>
+<!--
+  pokemon-showdown-embed.html
+  Úsalo como index.html en GitHub Pages (o cualquier hosting estático).
+
+  Cómo funciona:
+  - Por defecto carga el servidor oficial: https://play.pokemonshowdown.com/
+  - Puedes cambiar el servidor usando la query string: ?server=https://tu-servidor
+    Ejemplo: https://tudominio.github.io/?server=https://example.com
+  - Si el servidor bloquea embedding (X-Frame-Options), el iframe puede no mostrarse.
+    En ese caso el botón "Abrir en nueva pestaña" abrirá el servidor directamente.
+-->
+
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon Showdown</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jugar Pokémon Showdown — Embed</title>
+  <style>
+    :root{--bg:#0b1220;--card:#0f1724;--accent:#2aa9e0;--muted:#9aa6b2;--glass:rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#07101a);font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+    .wrap{max-width:1100px;margin:24px auto;padding:18px;background:var(--card);border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between}
+    h1{font-size:1.15rem;margin:0;color:#e6f6ff}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:0.95rem}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+    input[type=text]{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:#eaf6ff;min-width:320px}
+    button{padding:9px 12px;border-radius:10px;border:0;background:var(--accent);color:#04202b;font-weight:600;cursor:pointer}
+    .badge{background:#061018;color:var(--muted);padding:6px 8px;border-radius:8px;font-size:0.85rem}
+    .frame-wrap{margin-top:16px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
+    iframe{width:100%;height:75vh;border:0;display:block}
+    .note{margin-top:12px;color:var(--muted);font-size:0.9rem}
+    .fallback{margin-top:10px;display:flex;gap:8px;align-items:center}
+    a.linkbtn{padding:8px 12px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);text-decoration:none}
+    footer{margin-top:14px;color:var(--muted);font-size:0.85rem}
+
+    @media (max-width:640px){iframe{height:60vh}input[type=text]{min-width:160px}}
+  </style>
 </head>
 <body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Pokémon Showdown — Jugar desde tu web</h1>
+        <p class="lead">Embebe un servidor existente (por defecto: servidor oficial). No necesitas levantar servidor propio.</p>
+      </div>
+      <div style="text-align:right">
+        <div class="badge">Archivo listo para GitHub Pages</div>
+      </div>
+    </header>
+
+    <div class="controls">
+      <label for="serverInput" style="color:var(--muted);font-size:0.9rem">Servidor (URL):</label>
+      <input id="serverInput" type="text" placeholder="https://play.pokemonshowdown.com/" />
+      <button id="loadBtn">Cargar</button>
+      <button id="openBtn">Abrir en nueva pestaña</button>
+      <div style="flex:1"></div>
+    </div>
+
+    <div class="frame-wrap" id="frameWrap">
+      <iframe id="psFrame" src="about:blank" allowfullscreen loading="lazy" title="Pokémon Showdown embed"></iframe>
+    </div>
+
+    <div class="note">
+      <strong>Nota:</strong> algunos servidores (incluido el oficial) podrían impedir que se muestre el juego dentro de un <code>iframe</code> por razones de seguridad (cabeceras <code>X-Frame-Options</code> o <code>Content-Security-Policy</code>). Si ves una pantalla en blanco o no carga, pulsa "Abrir en nueva pestaña" para jugar directamente en el servidor.
+    </div>
+
+    <div class="fallback">
+      <a id="fallbackLink" class="linkbtn" href="#" target="_blank">Abrir servidor en nueva pestaña</a>
+      <span style="color:var(--muted);font-size:0.88rem">— Si el iframe no funciona, usa este enlace.</span>
+    </div>
+
+    <footer>
+      Sugerencia: sube este archivo como <code>index.html</code> al root de tu repositorio y habilita GitHub Pages en la rama <code>main</code> o <code>docs/</code>. Ejemplo de URL: <code>https://tuusuario.github.io/</code>
+    </footer>
+  </div>
+
+  <script>
+    // Valor por defecto
+    const DEFAULT = 'https://play.pokemonshowdown.com/';
+
+    const params = new URLSearchParams(location.search);
+    const serverParam = params.get('server');
+
+    const input = document.getElementById('serverInput');
+    const loadBtn = document.getElementById('loadBtn');
+    const openBtn = document.getElementById('openBtn');
+    const frame = document.getElementById('psFrame');
+    const fallbackLink = document.getElementById('fallbackLink');
+
+    function normalizeUrl(u){
+      if(!u) return DEFAULT;
+      try{
+        const url = new URL(u);
+        return url.href;
+      }catch(e){
+        // si el usuario puso algo como play.pokemonshowdown.com
+        return 'https://' + u.replace(/^https?:\/\//,'');
+      }
+    }
+
+    const startUrl = normalizeUrl(serverParam || DEFAULT);
+    input.value = startUrl;
+
+    function setSrc(u){
+      frame.src = u;
+      fallbackLink.href = u;
+      openBtn.onclick = ()=> window.open(u, '_blank');
+    }
+
+    // Cargar inicial
+    setSrc(startUrl);
+
+    // Botón cargar
+    loadBtn.addEventListener('click', ()=>{
+      const u = normalizeUrl(input.value.trim());
+      setSrc(u);
+      // actualizar querystring del navegador (sin recargar)
+      const newUrl = new URL(location.href);
+      newUrl.searchParams.set('server', u);
+      history.replaceState(null, '', newUrl.toString());
+    });
+
+    // Detección simple: si el iframe tarda mucho en cargarse, muestra mensaje en consola.
+    // No podemos acceder al contenido por ser cross-origin.
+    let loadTimer = setTimeout(()=>{
+      console.info('Si ves esto: el servidor puede bloquear embedding. Usa "Abrir en nueva pestaña".');
+    }, 3000);
+
+    frame.addEventListener('load', ()=>{
+      clearTimeout(loadTimer);
+      // Si la URL sigue siendo about:blank, probablemente hubo bloqueo; no hacer nada más.
+      if(frame.src === 'about:blank') return;
+      // intentar limpiar el mensaje
+      console.info('iframe cargado (posible éxito si el servidor lo permite).');
+    });
+
+  </script>
+</body>
+</html>
+
     <iframe src="https://github.com/smogon/pokemon-showdown.git" width="100%" height="1000px" frameborder="0"></iframe>
 </body>
 </html>
